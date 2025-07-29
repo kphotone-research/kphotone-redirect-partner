@@ -1,70 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Survey Redirect</title>
-</head>
-<body>
-  <p>Redirecting... Please wait.</p>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-  <script type="module">
-    // ✅ Step 1: Import Supabase
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+// ✅ Your Supabase config
+const supabaseUrl = "https://qbezfrqsojypxpmyblbc.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc
+";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // ✅ Step 2: Add your Supabase project credentials here
-    const supabaseUrl = "https://qbezfrqsojypxpmyblbc.supabase.co";  // 🔁 Replace this
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc";                        // 🔁 Replace this
-    const supabase = createClient(supabaseUrl, supabaseKey);
+// ✅ Get params
+const urlParams = new URLSearchParams(window.location.search);
+const sid = urlParams.get('sid');
+const project_id = urlParams.get('project_id');
+const survey_id = urlParams.get('survey_id') || null;
 
-    // ✅ Step 3: Extract query params
-    const urlParams = new URLSearchParams(window.location.search);
-    const sid = urlParams.get('sid');
-    const projectId = urlParams.get('project_id');
-    const surveyId = urlParams.get('survey_id');
+if (!sid || !project_id) {
+  document.body.innerHTML = "❌ Missing or invalid parameters.";
+  throw new Error("Missing sid or project_id");
+}
 
-    if (!sid || !projectId || !surveyId) {
-      document.body.innerHTML = '<p>Missing or invalid parameters.</p>';
-      throw new Error("Missing parameters");
+async function fetchAndRedirect() {
+  const { data, error } = await supabase
+    .from('redirect_links')
+    .select('actual_link')
+    .eq('project_id', project_id)
+    .eq('sid', sid)
+    .single();
+
+  if (error || !data) {
+    console.error("Error:", error);
+    document.body.innerHTML = "❌ System error. Please contact support@kphotone.com.";
+    return;
+  }
+
+  // ✅ Log access (optional)
+  await supabase.from('redirect_logs').insert([
+    {
+      sid,
+      project_id,
+      survey_id: survey_id || null,
+      status: 'started'
     }
+  ]);
 
-    // ✅ Step 4: Fetch redirect info from Supabase
-    async function handleRedirect() {
-      try {
-        // Log the visit
-        await supabase.from('redirect_logs').insert([
-          {
-            sid: sid,
-            project_id: projectId,
-            survey_id: surveyId,
-            status: 'started',
-            timestamp: new Date().toISOString(),
-          }
-        ]);
+  // ✅ Redirect to actual survey
+  window.location.href = data.actual_link;
+}
 
-        // Fetch redirect link
-        const { data, error } = await supabase
-          .from('redirect_links')
-          .select('*')
-          .eq('sid', sid)
-          .eq('project_id', projectId)
-          .eq('survey_id', surveyId)
-          .single();
-
-        if (error || !data) {
-          document.body.innerHTML = '<p>System error. Please contact <a href="mailto:support@kphotone.com">support@kphotone.com</a>.</p>';
-          return;
-        }
-
-        // Redirect to the supplier’s actual survey URL
-        window.location.href = data.survey_url;
-      } catch (err) {
-        console.error(err);
-        document.body.innerHTML = '<p>Unexpected error. Please contact <a href="mailto:support@kphotone.com">support@kphotone.com</a>.</p>';
-      }
-    }
-
-    handleRedirect();
-  </script>
-</body>
-</html>
+fetchAndRedirect();
+</script>
