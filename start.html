@@ -1,52 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Redirecting...</title>
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+<html>
+  <head>
+    <title>Redirecting...</title>
+    <script type="module">
+      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    const supabaseUrl = 'https://qbezfrqsojypxpmyblbc.supabase.co'; // your Supabase URL
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc'; // replace with your actual anon key
-    const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabaseUrl = "https://qbezfrqsojypxpmyblbc.supabase.co";  // replace
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc";              // replace
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const sid = urlParams.get('sid');
-    const project_id = urlParams.get('project_id');
-    const survey_id = urlParams.get('survey_id');
+      const urlParams = new URLSearchParams(window.location.search);
+      const projectId = urlParams.get("project_id");
+      const originalSurveyId = urlParams.get("survey_id");
+      const supplierId = urlParams.get("sid");
 
-    async function redirectToSurvey() {
-      if (!sid || !project_id || !survey_id) {
-        document.body.innerText = 'Missing or invalid parameters.';
-        return;
+      const supportEmail = "support@kphotone.com";
+
+      async function generateMaskedId() {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = 'KP';
+        for (let i = 0; i < 8; i++) {
+          result += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        return result;
       }
 
-      try {
-        const { data, error } = await supabase
-          .from('redirect_links')
-          .select('actual_link')
-          .eq('sid', sid)
-          .eq('project_id', project_id)
-          .eq('survey_id', survey_id)
-          .single();
-
-        if (error || !data || !data.actual_link) {
-          console.error(error);
-          document.body.innerText = 'System error. Please contact support@kphotone.com.';
+      async function redirectToSurvey() {
+        if (!projectId || !originalSurveyId || !supplierId) {
+          document.body.innerHTML = `Missing parameters. Contact <a href="mailto:${supportEmail}">${supportEmail}</a>.`;
           return;
         }
 
-        window.location.href = data.actual_link;
-      } catch (e) {
-        console.error(e);
-        document.body.innerText = 'Unexpected error. Please contact support@kphotone.com.';
-      }
-    }
+        try {
+          const { data: linkData, error } = await supabase
+            .from("redirect_links")
+            .select("*")
+            .eq("project_id", projectId)
+            .eq("supplier_id", supplierId)
+            .limit(1)
+            .maybeSingle();
 
-    redirectToSurvey();
-  </script>
-</head>
-<body>
-  <p>Redirecting you to the survey…</p>
-</body>
+          if (error || !linkData) {
+            throw new Error("Survey not configured.");
+          }
+
+          const actualSurveyBaseUrl = linkData.actual_survey_base_url;
+
+          let maskedSurveyId = linkData.masked_survey_id;
+
+          // Check if already exists
+          if (!maskedSurveyId) {
+            maskedSurveyId = await generateMaskedId();
+            await supabase
+              .from("redirect_links")
+              .update({ original_survey_id, masked_survey_id: maskedSurveyId })
+              .eq("id", linkData.id);
+          }
+
+          const finalUrl = `${actualSurveyBaseUrl}?project_id=${projectId}&survey_id=${maskedSurveyId}`;
+          window.location.href = finalUrl;
+        } catch (e) {
+          console.error(e);
+          document.body.innerHTML = `System error. Contact <a href="mailto:${supportEmail}">${supportEmail}</a>.`;
+        }
+      }
+
+      redirectToSurvey();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to survey...</p>
+  </body>
 </html>
