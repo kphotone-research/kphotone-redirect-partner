@@ -1,0 +1,1 @@
+# kphotone-redirect-partner
