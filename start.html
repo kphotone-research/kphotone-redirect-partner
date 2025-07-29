@@ -3,60 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Redirecting...</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 50px;
-    }
-  </style>
+  <title>Survey Redirect</title>
 </head>
 <body>
-  <h2>Please wait while we redirect you...</h2>
-  <p>If you are not redirected automatically, please check the link or contact support@kphotone.com</p>
+  <p>Redirecting... Please wait.</p>
 
-  <script>
-    async function redirectToSurvey() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const sid = urlParams.get('sid');
-      const projectId = urlParams.get('project_id');
-      const surveyId = urlParams.get('survey_id');
+  <script type="module">
+    // ✅ Step 1: Import Supabase
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-      if (!sid || !projectId || !surveyId) {
-        document.body.innerHTML = "<h2>Missing or invalid parameters.</h2>";
-        return;
-      }
+    // ✅ Step 2: Add your Supabase project credentials here
+    const supabaseUrl = "https://qbezfrqsojypxpmyblbc.supabase.co";  // 🔁 Replace this
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc";                        // 🔁 Replace this
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-      const apiUrl = `/api/get-redirect?sid=${sid}&project_id=${projectId}&survey_id=${surveyId}`;
+    // ✅ Step 3: Extract query params
+    const urlParams = new URLSearchParams(window.location.search);
+    const sid = urlParams.get('sid');
+    const projectId = urlParams.get('project_id');
+    const surveyId = urlParams.get('survey_id');
 
+    if (!sid || !projectId || !surveyId) {
+      document.body.innerHTML = '<p>Missing or invalid parameters.</p>';
+      throw new Error("Missing parameters");
+    }
+
+    // ✅ Step 4: Fetch redirect info from Supabase
+    async function handleRedirect() {
       try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
+        // Log the visit
+        await supabase.from('redirect_logs').insert([
+          {
+            sid: sid,
+            project_id: projectId,
+            survey_id: surveyId,
+            status: 'started',
+            timestamp: new Date().toISOString(),
+          }
+        ]);
 
-        if (!data || !data.survey_url) {
-          document.body.innerHTML = "<h2>Survey not found or link error.</h2>";
+        // Fetch redirect link
+        const { data, error } = await supabase
+          .from('redirect_links')
+          .select('*')
+          .eq('sid', sid)
+          .eq('project_id', projectId)
+          .eq('survey_id', surveyId)
+          .single();
+
+        if (error || !data) {
+          document.body.innerHTML = '<p>System error. Please contact <a href="mailto:support@kphotone.com">support@kphotone.com</a>.</p>';
           return;
         }
 
-        // Store redirect info in sessionStorage to use after survey completes
-        sessionStorage.setItem("redirectInfo", JSON.stringify({
-          sid, project_id: projectId, survey_id: surveyId,
-          qualified: data.qualified,
-          terminate: data.terminate,
-          quotafull: data.quotafull
-        }));
-
-        // Redirect to the survey
+        // Redirect to the supplier’s actual survey URL
         window.location.href = data.survey_url;
-
-      } catch (error) {
-        console.error("Error fetching redirect:", error);
-        document.body.innerHTML = "<h2>System error. Please contact support@kphotone.com</h2>";
+      } catch (err) {
+        console.error(err);
+        document.body.innerHTML = '<p>Unexpected error. Please contact <a href="mailto:support@kphotone.com">support@kphotone.com</a>.</p>';
       }
     }
 
-    redirectToSurvey();
+    handleRedirect();
   </script>
 </body>
 </html>
