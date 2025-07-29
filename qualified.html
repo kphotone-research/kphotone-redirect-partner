@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body>
+  <h2>Thank you for completing the survey. Redirecting...</h2>
+
+  <script>
+    (async () => {
+      const redirectInfo = JSON.parse(sessionStorage.getItem("redirectInfo") || '{}');
+      const { sid, project_id, survey_id, qualified } = redirectInfo;
+
+      const apiUrl = `/api/log-redirect`;
+      await fetch(apiUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ sid, project_id, survey_id, status: 'qualified' })
+      });
+
+      const fallback = `https://survey.kphotone.com/qualified.html?project_id=${project_id}&survey_id=${survey_id}`;
+      window.location.href = qualified || fallback;
+    })();
+  </script>
+</body>
+</html>
