@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Redirecting...</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 50px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Please wait while we redirect you...</h2>
+  <p>If you are not redirected automatically, please check the link or contact support@kphotone.com</p>
+
+  <script>
+    async function redirectToSurvey() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sid = urlParams.get('sid');
+      const projectId = urlParams.get('project_id');
+      const surveyId = urlParams.get('survey_id');
+
+      if (!sid || !projectId || !surveyId) {
+        document.body.innerHTML = "<h2>Missing or invalid parameters.</h2>";
+        return;
+      }
+
+      const apiUrl = `/api/get-redirect?sid=${sid}&project_id=${projectId}&survey_id=${surveyId}`;
+
+      try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        if (!data || !data.survey_url) {
+          document.body.innerHTML = "<h2>Survey not found or link error.</h2>";
+          return;
+        }
+
+        // Store redirect info in sessionStorage to use after survey completes
+        sessionStorage.setItem("redirectInfo", JSON.stringify({
+          sid, project_id: projectId, survey_id: surveyId,
+          qualified: data.qualified,
+          terminate: data.terminate,
+          quotafull: data.quotafull
+        }));
+
+        // Redirect to the survey
+        window.location.href = data.survey_url;
+
+      } catch (error) {
+        console.error("Error fetching redirect:", error);
+        document.body.innerHTML = "<h2>System error. Please contact support@kphotone.com</h2>";
+      }
+    }
+
+    redirectToSurvey();
+  </script>
+</body>
+</html>
