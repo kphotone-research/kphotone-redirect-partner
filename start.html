@@ -1,50 +1,52 @@
-<script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting...</title>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-// ✅ Your Supabase config
-const supabaseUrl = "https://qbezfrqsojypxpmyblbc.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc
-";
-const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseUrl = 'https://qbezfrqsojypxpmyblbc.supabase.co'; // your Supabase URL
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc'; // replace with your actual anon key
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ✅ Get params
-const urlParams = new URLSearchParams(window.location.search);
-const sid = urlParams.get('sid');
-const project_id = urlParams.get('project_id');
-const survey_id = urlParams.get('survey_id') || null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const sid = urlParams.get('sid');
+    const project_id = urlParams.get('project_id');
+    const survey_id = urlParams.get('survey_id');
 
-if (!sid || !project_id) {
-  document.body.innerHTML = "❌ Missing or invalid parameters.";
-  throw new Error("Missing sid or project_id");
-}
+    async function redirectToSurvey() {
+      if (!sid || !project_id || !survey_id) {
+        document.body.innerText = 'Missing or invalid parameters.';
+        return;
+      }
 
-async function fetchAndRedirect() {
-  const { data, error } = await supabase
-    .from('redirect_links')
-    .select('actual_link')
-    .eq('project_id', project_id)
-    .eq('sid', sid)
-    .single();
+      try {
+        const { data, error } = await supabase
+          .from('redirect_links')
+          .select('actual_link')
+          .eq('sid', sid)
+          .eq('project_id', project_id)
+          .eq('survey_id', survey_id)
+          .single();
 
-  if (error || !data) {
-    console.error("Error:", error);
-    document.body.innerHTML = "❌ System error. Please contact support@kphotone.com.";
-    return;
-  }
+        if (error || !data || !data.actual_link) {
+          console.error(error);
+          document.body.innerText = 'System error. Please contact support@kphotone.com.';
+          return;
+        }
 
-  // ✅ Log access (optional)
-  await supabase.from('redirect_logs').insert([
-    {
-      sid,
-      project_id,
-      survey_id: survey_id || null,
-      status: 'started'
+        window.location.href = data.actual_link;
+      } catch (e) {
+        console.error(e);
+        document.body.innerText = 'Unexpected error. Please contact support@kphotone.com.';
+      }
     }
-  ]);
 
-  // ✅ Redirect to actual survey
-  window.location.href = data.actual_link;
-}
-
-fetchAndRedirect();
-</script>
+    redirectToSurvey();
+  </script>
+</head>
+<body>
+  <p>Redirecting you to the survey…</p>
+</body>
+</html>
