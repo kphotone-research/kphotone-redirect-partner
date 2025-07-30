@@ -1,0 +1,45 @@
+<!DOCTYPE html><html><head><title>Redirecting...</title></head><body>
+<p>Redirecting, please wait...</p>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+const SUPA_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc';
+const supabase = createClient(SUPA_URL, SUPA_KEY);
+
+const params = new URLSearchParams(window.location.search);
+const project_id = params.get('project_id');
+const sid = params.get('sid');
+const supplier_id = params.get('supplier_id');
+
+if (!project_id || !sid || !supplier_id) {
+  document.body.innerHTML = 'Missing parameters.';
+} else {
+  (async () => {
+    const { data, error } = await supabase
+      .from('surveys')
+      .select('*')
+      .eq('project_id', project_id)
+      .eq('supplier_id', sid)
+      .maybeSingle();
+
+    if (error || !data) {
+      document.body.innerHTML = 'Survey not found or link error';
+      return;
+    }
+
+    const masked = data.masked_survey_id;
+    const finalUrl = data.actual_survey_base_url.replace('XXXX', masked);
+    // Log launch
+    await supabase.from('redirect_logs').insert([{
+      survey_id: data.id,
+      sid,
+      supplier_id,
+      masked_survey_id: masked,
+      event: 'launch'
+    }]);
+    window.location.href = finalUrl;
+  })();
+}
+</script>
+</body></html>
