@@ -1,74 +1,47 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Redirecting...</title>
-    <script type="module">
-      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+<head>
+  <title>Redirecting...</title>
+  <script type="module">
+    const url = new URL(window.location.href);
+    const sid = url.searchParams.get("sid");
+    const project_id = url.searchParams.get("project_id");
+    const supplier_survey_id = url.searchParams.get("survey_id");
 
-      const supabaseUrl = "https://qbezfrqsojypxpmyblbc.supabase.co";  // replace
-      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc";              // replace
-      const supabase = createClient(supabaseUrl, supabaseKey);
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const projectId = urlParams.get("project_id");
-      const originalSurveyId = urlParams.get("survey_id");
-      const supplierId = urlParams.get("sid");
-
-      const supportEmail = "support@kphotone.com";
-
-      async function generateMaskedId() {
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let result = 'KP';
-        for (let i = 0; i < 8; i++) {
-          result += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-        return result;
+    async function redirectToSurvey() {
+      if (!sid || !project_id || !supplier_survey_id) {
+        document.body.innerText = "Missing parameters.";
+        return;
       }
 
-      async function redirectToSurvey() {
-        if (!projectId || !originalSurveyId || !supplierId) {
-          document.body.innerHTML = `Missing parameters. Contact <a href="mailto:${supportEmail}">${supportEmail}</a>.`;
-          return;
+      const apiUrl = `https://qbezfrqsojypxpmyblbc.supabase.co/rest/v1/surveys?project_id=eq.${project_id}&supplier_id=eq.${sid}`;
+      
+      const res = await fetch(apiUrl, {
+        headers: {
+          apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFiZXpmcnFzb2p5cHhwbXlibGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMjIxNDgsImV4cCI6MjA1OTU5ODE0OH0.FwfbMTlfPQ17OpoMXR3zDL13lwHwm3QlblV5dmHfEVc",
+          Authorization: "Bearer your-public-anon-key"
         }
+      });
 
-        try {
-          const { data: linkData, error } = await supabase
-            .from("redirect_links")
-            .select("*")
-            .eq("project_id", projectId)
-            .eq("supplier_id", supplierId)
-            .limit(1)
-            .maybeSingle();
+      const data = await res.json();
 
-          if (error || !linkData) {
-            throw new Error("Survey not configured.");
-          }
-
-          const actualSurveyBaseUrl = linkData.actual_survey_base_url;
-
-          let maskedSurveyId = linkData.masked_survey_id;
-
-          // Check if already exists
-          if (!maskedSurveyId) {
-            maskedSurveyId = await generateMaskedId();
-            await supabase
-              .from("redirect_links")
-              .update({ original_survey_id, masked_survey_id: maskedSurveyId })
-              .eq("id", linkData.id);
-          }
-
-          const finalUrl = `${actualSurveyBaseUrl}?project_id=${projectId}&survey_id=${maskedSurveyId}`;
-          window.location.href = finalUrl;
-        } catch (e) {
-          console.error(e);
-          document.body.innerHTML = `System error. Contact <a href="mailto:${supportEmail}">${supportEmail}</a>.`;
-        }
+      if (data.length === 0) {
+        document.body.innerText = "Survey not found or link error.";
+        return;
       }
 
-      redirectToSurvey();
-    </script>
-  </head>
-  <body>
-    <p>Redirecting to survey...</p>
-  </body>
+      const survey = data[0];
+      const maskedId = survey.masked_survey_id;
+      const baseUrl = survey.actual_survey_base_url;
+      const finalUrl = baseUrl.replace("XXXX", maskedId);
+
+      window.location.href = finalUrl;
+    }
+
+    redirectToSurvey();
+  </script>
+</head>
+<body>
+  <p>Redirecting to your survey…</p>
+</body>
 </html>
